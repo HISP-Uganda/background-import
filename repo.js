@@ -4,6 +4,8 @@ const fs = require("fs");
 const csv = require("csv-parser");
 const { queryDHIS2, postDHIS2 } = require("./common");
 
+const logger = require("./Logger");
+
 async function downloadData(mappingDetails, id, startDate, endDate) {
   const { remoteDataSet, url, username, password } = mappingDetails;
   let remoteUrl = `${url}/api/dataValueSets.csv`;
@@ -82,6 +84,7 @@ const processFile = async (combos, attributes, orgUnit) => {
   });
 };
 const fetchAllMapping = async (mappingId, startDate, endDate) => {
+  const log = logger(mappingId);
   const [mappingDetails, ouMapping, cMapping, aMapping] = await Promise.all([
     queryDHIS2(`dataStore/agg-wizard/${mappingId}`, {}),
     queryDHIS2(`dataStore/o-mapping/${mappingId}`, {}),
@@ -99,22 +102,26 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
   const total = ouMapping.length;
   for (const { id, mapping } of ouMapping) {
     try {
-      console.log(
-        `${new Date().toISOString()}: Downloading data for ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
+      log.info(
+        `Downloading data for ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
       );
       await downloadData(mappingDetails, id, startDate, endDate);
-      console.log(
-        `${new Date().toISOString()}: Processing ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
+      log.info(
+        `Processing ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
       );
       const dataValues = await processFile(combos, attributes, mapping);
-      console.log(
-        `${new Date().toISOString()}: Inserting data for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
+      log.info(
+        `Inserting data for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
       );
       const response = await postDHIS2("dataValueSets", { dataValues });
-      console.log(response?.importCount);
+      log.info(JSON.stringify(response?.importCount));
+      if (response.conflicts) {
+        for (const conflict of response.conflicts) {
+          log.warn(JSON.stringify(conflict));
+        }
+      }
     } catch (error) {
-      console.log(error);
-    }
+      log.error(error.message)    }
     count = count + 1;
   }
 };
