@@ -36,6 +36,5 @@ logs/connector.log
 schedules.db
 logs*
 *.excel
-*.json
 *.xlsx
 *.csv
