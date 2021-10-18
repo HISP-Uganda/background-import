@@ -7,7 +7,13 @@ const { queryDHIS2, postDHIS2 } = require("./common");
 const logger = require("./Logger");
 
 async function downloadData(mappingDetails, id, startDate, endDate) {
-  const { remoteDataSet, url, username, password } = mappingDetails;
+  const {
+    remoteDataSet,
+    url,
+    username,
+    password,
+    id: mappingId,
+  } = mappingDetails;
   let remoteUrl = `${url}/api/dataValueSets.csv`;
 
   if (String(url).endsWith("/")) {
@@ -25,7 +31,7 @@ async function downloadData(mappingDetails, id, startDate, endDate) {
       orgUnit: id,
     },
   });
-  response.data.pipe(fs.createWriteStream("data-values.csv"));
+  response.data.pipe(fs.createWriteStream(`${mappingId}.csv`));
   return new Promise((resolve, reject) => {
     response.data.on("end", () => {
       resolve();
@@ -36,10 +42,10 @@ async function downloadData(mappingDetails, id, startDate, endDate) {
   });
 }
 
-const processFile = async (combos, attributes, orgUnit) => {
+const processFile = async (mappingId, combos, attributes, orgUnit) => {
   const dataValues = [];
   return new Promise((resolve, reject) => {
-    const stream = fs.createReadStream("data-values.csv");
+    const stream = fs.createReadStream(`${mappingId}.csv`);
     const parser = csv();
     stream.on("ready", () => {
       stream.pipe(parser);
@@ -109,7 +115,12 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
       log.info(
         `Processing ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
       );
-      const dataValues = await processFile(combos, attributes, mapping);
+      const dataValues = await processFile(
+        mappingId,
+        combos,
+        attributes,
+        mapping
+      );
       log.info(
         `Inserting data for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
       );
@@ -121,7 +132,8 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
         }
       }
     } catch (error) {
-      log.error(error.message)    }
+      log.error(error.message);
+    }
     count = count + 1;
   }
 };
