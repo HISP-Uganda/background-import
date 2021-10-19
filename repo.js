@@ -128,7 +128,7 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
       log.info(JSON.stringify(response?.importCount));
       if (response.conflicts) {
         for (const conflict of response.conflicts) {
-          log.warn(JSON.stringify(conflict));
+          log.warn(`${conflict.object} ${conflict.value}`);
         }
       }
     } catch (error) {

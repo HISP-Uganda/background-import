@@ -24,8 +24,7 @@ module.exports.getDHIS2Url1 = (uri) => {
         }
       }
     } catch (e) {
-      console.log(e);
-      return e;
+      console.log(e.message);
     }
   }
   return null;
@@ -51,11 +50,10 @@ module.exports.queryDHIS2 = async (path, params) => {
         auth: this.createDHIS2Auth(),
         params,
       });
-
       return data;
     }
   } catch (e) {
-    console.log("error", e);
+    console.log(e.message);
   }
 };
 
@@ -64,7 +62,6 @@ module.exports.postDHIS2 = async (path, postData, params) => {
     const baseUrl = this.getDHIS2Url();
     if (baseUrl) {
       const urlx = `${baseUrl}/${path}`;
-      console.log(urlx);
       const { data } = await axios.post(urlx, postData, {
         auth: this.createDHIS2Auth(),
         params,
@@ -72,11 +69,7 @@ module.exports.postDHIS2 = async (path, postData, params) => {
       return data;
     }
   } catch (e) {
-    console.log(e)
-    // const {
-    //   response: { data },
-    // } = e;
-    // return data;
+    console.log(e.message)
   }
 };
 
@@ -91,7 +84,7 @@ module.exports.deleteDHIS2 = async (path) => {
       return data;
     }
   } catch (e) {
-    console.log("error", e);
+    console.log(e.message);
   }
 };
 
@@ -107,6 +100,6 @@ module.exports.updateDHIS2 = async (path, postData, params) => {
       return data;
     }
   } catch (e) {
-    console.log("error", e);
+    console.log(e.message);
   }
 };
