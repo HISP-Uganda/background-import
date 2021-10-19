@@ -61,6 +61,7 @@ module.exports.bulk = async (params) => {
         }
       });
     }
+    log.info(`Inserted ${dataset.length - errorDocuments.length}`);
     return {
       errorDocuments,
       inserted: dataset.length - errorDocuments.length,

@@ -2,6 +2,14 @@ const { search, bulk } = require("./elasticsearch");
 const { fromPairs, flatten, uniq, groupBy } = require("lodash");
 const mergeByKey = require("array-merge-by-key");
 const axios = require("axios");
+const fs = require("fs").promises;
+const {
+  format,
+  parseISO,
+  differenceInDays,
+  differenceInMinutes,
+  differenceInSeconds,
+} = require("date-fns");
 const defenceSites = require("./defenceSites.json");
 const logger = require("./Logger");
 
@@ -13,6 +21,18 @@ const OTHER_ID = "YvnFn4IjKzx";
 let defenceUnits = fromPairs(defenceSites.map((ou) => [ou.id, ou.name]));
 
 const log = logger("epivac");
+
+module.exports.interval = (startDate, endDate) => {
+  const days = differenceInDays(endDate, startDate);
+  if (days === 0) {
+    const minutes = differenceInMinutes(endDate, startDate);
+    if (minutes === 0) {
+      return `${differenceInSeconds(endDate, startDate)}s`;
+    }
+    return `${minutes}m`;
+  }
+  return `${days}d`;
+};
 
 module.exports.createApi = (baseURL, username, password) => {
   return axios.create({
@@ -135,9 +155,21 @@ module.exports.processInstances = async (params) => {
   });
 };
 
-module.exports.epivac = async (baseURL, username, password, others = {}) => {
+module.exports.epivac = async (
+  baseURL,
+  username,
+  password,
+  file,
+  others = {}
+) => {
+  let lastDate = "";
+  const today = new Date();
+  try {
+    lastDate = await fs.readFile(file, "utf8");
+  } catch (err) {}
+
   const api = this.createApi(baseURL, username, password);
-  const params = {
+  let params = {
     program: PROGRAM,
     ouMode: "ALL",
     totalPages: true,
@@ -146,6 +178,17 @@ module.exports.epivac = async (baseURL, username, password, others = {}) => {
     pageSize: 1000,
     ...others,
   };
+
+  if (lastDate) {
+    log.info(
+      `Adding last updated param of ${this.interval(parseISO(lastDate), today)}`
+    );
+    params = {
+      ...params,
+      lastUpdatedDuration: this.interval(parseISO(lastDate), today),
+    };
+  }
+  log.info(`Fetching initial data`);
   const {
     data: {
       trackedEntityInstances,
@@ -155,23 +198,26 @@ module.exports.epivac = async (baseURL, username, password, others = {}) => {
     params,
   });
 
+  log.info(`Processing initial data`);
   await this.processInstances({
     trackedEntityInstances,
   });
   if (pageCount > 1) {
     for (let page = 2; page <= pageCount; page++) {
-      console.log(`Processing ${page} of ${pageCount}`);
+      log.info(`Fetching ${page} of ${pageCount}`);
       const {
         data: { trackedEntityInstances },
       } = await api.get("trackedEntityInstances.json", {
         params: { ...params, page },
       });
+      log.info(`Processing ${page} of ${pageCount}`);
       await this.processInstances({
         trackedEntityInstances,
       });
     }
   }
-  return "finished";
+  await fs.writeFile(file, today.toISOString());
+  log.info(`Finished processing`);
 };
 module.exports.processFacilities = (organisationUnits) => {
   return organisationUnits.map((unit) => {
