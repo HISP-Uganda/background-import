@@ -4,6 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "@elastic/elasticsearch": "^7.15.0",
+    "array-merge-by-key": "^1.0.1",
     "axios": "^0.20.0",
     "csv-parser": "^3.0.0",
     "date-fns": "^2.23.0",
