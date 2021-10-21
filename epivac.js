@@ -159,15 +159,8 @@ module.exports.epivac = async (
   baseURL,
   username,
   password,
-  file,
-  others = {}
+  lastUpdatedDuration = null
 ) => {
-  let lastDate = "";
-  const today = new Date();
-  try {
-    lastDate = await fs.readFile(file, "utf8");
-  } catch (err) {}
-
   const api = this.createApi(baseURL, username, password);
   let params = {
     program: PROGRAM,
@@ -176,16 +169,15 @@ module.exports.epivac = async (
     page: 1,
     fields: "*",
     pageSize: 1000,
-    ...others,
   };
 
-  if (lastDate) {
+  if (lastUpdatedDuration) {
     log.info(
       `Adding last updated param of ${this.interval(parseISO(lastDate), today)}`
     );
     params = {
       ...params,
-      lastUpdatedDuration: this.interval(parseISO(lastDate), today),
+      lastUpdatedDuration,
     };
   }
   log.info(`Fetching initial data`);

@@ -89,7 +89,7 @@ const processFile = async (mappingId, combos, attributes, orgUnit) => {
     });
   });
 };
-const fetchAllMapping = async (mappingId, startDate, endDate) => {
+const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
   const log = logger(mappingId);
   const [mappingDetails, ouMapping, cMapping, aMapping] = await Promise.all([
     queryDHIS2(`dataStore/agg-wizard/${mappingId}`, {}),
@@ -104,9 +104,10 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
   const attributes = fromPairs(
     aMapping.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
   );
-  let count = 1;
+  let count = start;
   const total = ouMapping.length;
-  for (const { id, mapping } of ouMapping) {
+  const units = ouMapping.slice(start);
+  for (const { id, mapping } of units) {
     try {
       log.info(
         `Downloading data for ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
@@ -126,6 +127,9 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
       );
       const response = await postDHIS2("dataValueSets", { dataValues });
       log.info(JSON.stringify(response?.importCount));
+      if (response.importCount.ignored > 0) {
+        fs.writeFileSync(JSON.stringify({ dataValues }));
+      }
       if (response.conflicts) {
         for (const conflict of response.conflicts) {
           log.warn(`${conflict.object} ${conflict.value}`);
@@ -140,8 +144,11 @@ const fetchAllMapping = async (mappingId, startDate, endDate) => {
 
 const args = process.argv.slice(2);
 
-if (args.length === 3) {
-  fetchAllMapping(args[0], args[1], args[2]).then(() => console.log("Done"));
+if (args.length >= 3) {
+  const start = args.length === 4 ? parseInt(args[3], 10) : 0;
+  fetchAllMapping(args[0], args[1], args[2], start).then(() =>
+    console.log("Done")
+  );
 } else {
   console.log("Wrong arguments");
 }
