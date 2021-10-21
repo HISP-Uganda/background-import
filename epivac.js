@@ -172,9 +172,7 @@ module.exports.epivac = async (
   };
 
   if (lastUpdatedDuration) {
-    log.info(
-      `Adding last updated param of ${this.interval(parseISO(lastDate), today)}`
-    );
+    log.info(`Adding last updated param of ${lastUpdatedDuration}`);
     params = {
       ...params,
       lastUpdatedDuration,
