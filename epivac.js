@@ -206,7 +206,6 @@ module.exports.epivac = async (
       });
     }
   }
-  await fs.writeFile(file, today.toISOString());
   log.info(`Finished processing`);
 };
 module.exports.processFacilities = (organisationUnits) => {
