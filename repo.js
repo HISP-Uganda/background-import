@@ -1,4 +1,4 @@
-const { fromPairs } = require("lodash");
+const { fromPairs, chunk } = require("lodash");
 const { default: Axios } = require("axios");
 const fs = require("fs");
 const csv = require("csv-parser");
@@ -122,17 +122,21 @@ const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
         attributes,
         mapping
       );
-      log.info(
-        `Inserting data for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
-      );
-      const response = await postDHIS2("dataValueSets", { dataValues });
-      log.info(JSON.stringify(response?.importCount));
-      if (response.importCount.ignored > 0) {
-        fs.writeFileSync(JSON.stringify({ dataValues }));
-      }
-      if (response.conflicts) {
-        for (const conflict of response.conflicts) {
-          log.warn(`${conflict.object} ${conflict.value}`);
+
+      let chunkCount = 0;
+      for (const c of chunk(dataValues, 20000)) {
+        log.info(
+          `Inserting chunk ${++chunkCount} for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
+        );
+        const response = await postDHIS2("dataValueSets", { dataValues: c });
+        log.info(JSON.stringify(response?.importCount));
+        if (response.importCount.ignored > 0) {
+          fs.writeFileSync(JSON.stringify({ dataValues }));
+        }
+        if (response.conflicts) {
+          for (const conflict of response.conflicts) {
+            log.warn(`${conflict.object} ${conflict.value}`);
+          }
         }
       }
     } catch (error) {
