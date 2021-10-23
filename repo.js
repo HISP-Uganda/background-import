@@ -124,7 +124,10 @@ const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
       );
 
       let chunkCount = 0;
-      for (const c of chunk(dataValues, 20000)) {
+      log.info(
+        `Processed ${dataValues.length} records`
+      );
+      for (const c of chunk(dataValues, 10000)) {
         log.info(
           `Inserting chunk ${++chunkCount} for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
         );
