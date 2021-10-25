@@ -6,14 +6,16 @@ const { queryDHIS2, postDHIS2 } = require("./common");
 
 const logger = require("./Logger");
 
-async function downloadData(mappingDetails, id, startDate, endDate) {
-  const {
-    remoteDataSet,
-    url,
-    username,
-    password,
-    id: mappingId,
-  } = mappingDetails;
+async function downloadData(
+  sectionName,
+  remoteDataSet,
+  url,
+  username,
+  password,
+  id,
+  startDate,
+  endDate
+) {
   let remoteUrl = `${url}/api/dataValueSets.csv`;
 
   if (String(url).endsWith("/")) {
@@ -31,7 +33,7 @@ async function downloadData(mappingDetails, id, startDate, endDate) {
       orgUnit: id,
     },
   });
-  response.data.pipe(fs.createWriteStream(`${mappingId}.csv`));
+  response.data.pipe(fs.createWriteStream(`${sectionName}.csv`));
   return new Promise((resolve, reject) => {
     response.data.on("end", () => {
       resolve();
@@ -42,10 +44,10 @@ async function downloadData(mappingDetails, id, startDate, endDate) {
   });
 }
 
-const processFile = async (mappingId, combos, attributes, orgUnit) => {
+const processFile = async (sectionName, combos, attributes, orgUnit) => {
   const dataValues = [];
   return new Promise((resolve, reject) => {
-    const stream = fs.createReadStream(`${mappingId}.csv`);
+    const stream = fs.createReadStream(`${sectionName}.csv`);
     const parser = csv();
     stream.on("ready", () => {
       stream.pipe(parser);
@@ -89,18 +91,35 @@ const processFile = async (mappingId, combos, attributes, orgUnit) => {
     });
   });
 };
-const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
-  const log = logger(mappingId);
-  const [mappingDetails, ouMapping, cMapping, aMapping] = await Promise.all([
-    queryDHIS2(`dataStore/agg-wizard/${mappingId}`, {}),
-    queryDHIS2(`dataStore/o-mapping/${mappingId}`, {}),
-    queryDHIS2(`dataStore/c-mapping/${mappingId}`, {}),
-    queryDHIS2(`dataStore/a-mapping/${mappingId}`, {}),
+const fetchAllMapping = async (
+  sectionName,
+  mappingIds,
+  startDate,
+  endDate,
+  start = 0
+) => {
+  const log = logger(sectionName);
+  const [mappingDetails, ouMapping, aMapping] = await Promise.all([
+    queryDHIS2(`dataStore/agg-wizard/${mappingIds[0]}`, {}),
+    queryDHIS2(`dataStore/o-mapping/${mappingIds[0]}`, {}),
+    queryDHIS2(`dataStore/a-mapping/${mappingIds[0]}`, {}),
   ]);
-  const { name } = mappingDetails;
-  const combos = fromPairs(
-    cMapping.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
+  const { remoteDataSet, url, username, password } = mappingDetails;
+  const allCombos = await Promise.all(
+    mappingIds.map((mappingId) =>
+      queryDHIS2(`dataStore/c-mapping/${mappingId}`, {})
+    )
   );
+  let combos = {};
+
+  allCombos.forEach((combo) => {
+    combos = {
+      ...combos,
+      ...fromPairs(
+        combo.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
+      ),
+    };
+  });
   const attributes = fromPairs(
     aMapping.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
   );
@@ -110,22 +129,36 @@ const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
   for (const { id, mapping } of units) {
     try {
       log.info(
-        `Downloading data for ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
+        `Downloading data for ${count} (${mapping}) of ${total} organisation units for mappings (${mappingIds.join(
+          ","
+        )})`
       );
-      await downloadData(mappingDetails, id, startDate, endDate);
+      await downloadData(
+        sectionName,
+        remoteDataSet,
+        url,
+        username,
+        password,
+        id,
+        startDate,
+        endDate
+      );
       log.info(
-        `Processing ${count} (${mapping}) of ${total} organisation units for mapping ${name} (${mappingId})`
+        `Processing ${count} (${mapping}) of ${total} organisation units for mappings (${mappingIds.join(
+          ","
+        )})`
       );
       const dataValues = await processFile(
-        mappingId,
+        sectionName,
         combos,
         attributes,
         mapping
       );
-
       log.info(`Processed ${dataValues.length} records`);
       log.info(
-        `Inserting ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
+        `Inserting ${count}  of ${total} organisation units for mappings (${mappingIds.join(
+          ","
+        )})`
       );
       const response = await postDHIS2("dataValueSets", { dataValues });
       log.info(JSON.stringify(response?.importCount));
@@ -143,9 +176,10 @@ const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
 
 const args = process.argv.slice(2);
 
-if (args.length >= 3) {
-  const start = args.length === 4 ? parseInt(args[3], 10) : 0;
-  fetchAllMapping(args[0], args[1], args[2], start).then(() =>
+if (args.length >= 4) {
+  const start = args.length === 5 ? parseInt(args[4], 10) : 0;
+  const mappingIds = String(args[1]).split(",");
+  fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
     console.log("Done")
   );
 } else {
