@@ -104,7 +104,7 @@ const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
   const attributes = fromPairs(
     aMapping.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
   );
-  let count = start;
+  let count = start + 1;
   const total = ouMapping.length;
   const units = ouMapping.slice(start);
   for (const { id, mapping } of units) {
@@ -123,23 +123,15 @@ const fetchAllMapping = async (mappingId, startDate, endDate, start = 0) => {
         mapping
       );
 
-      let chunkCount = 0;
+      log.info(`Processed ${dataValues.length} records`);
       log.info(
-        `Processed ${dataValues.length} records`
+        `Inserting ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
       );
-      for (const c of chunk(dataValues, 10000)) {
-        log.info(
-          `Inserting chunk ${++chunkCount} for ${count}  of ${total} organisation units for mapping ${name} (${mappingId})`
-        );
-        const response = await postDHIS2("dataValueSets", { dataValues: c });
-        log.info(JSON.stringify(response?.importCount));
-        if (response.importCount.ignored > 0) {
-          fs.writeFileSync(JSON.stringify({ dataValues }));
-        }
-        if (response.conflicts) {
-          for (const conflict of response.conflicts) {
-            log.warn(`${conflict.object} ${conflict.value}`);
-          }
+      const response = await postDHIS2("dataValueSets", { dataValues });
+      log.info(JSON.stringify(response?.importCount));
+      if (response.conflicts) {
+        for (const conflict of response.conflicts) {
+          log.warn(`${conflict.object} ${conflict.value}`);
         }
       }
     } catch (error) {
