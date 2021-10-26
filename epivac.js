@@ -4,8 +4,6 @@ const mergeByKey = require("array-merge-by-key");
 const axios = require("axios");
 const fs = require("fs").promises;
 const {
-  format,
-  parseISO,
   differenceInDays,
   differenceInMinutes,
   differenceInSeconds,
@@ -153,6 +151,95 @@ module.exports.processInstances = async (params) => {
     dataset: instances,
     id: "id",
   });
+};
+
+module.exports.fetchEvents = async (
+  baseURL,
+  username,
+  password,
+  lastUpdatedDuration = null
+) => {
+  const api = this.createApi(baseURL, username, password);
+  let params = {
+    program: PROGRAM,
+    ouMode: "ALL",
+    totalPages: true,
+    page: 1,
+    fields: "trackedEntityInstance",
+    pageSize: 50,
+  };
+
+  if (lastUpdatedDuration) {
+    log.info(`Adding last updated param of ${lastUpdatedDuration}`);
+    params = {
+      ...params,
+      lastUpdatedDuration,
+    };
+  }
+  log.info(`Fetching initial data`);
+  const {
+    data: {
+      events,
+      pager: { pageCount },
+    },
+  } = await api.get("events.json", {
+    params,
+  });
+  const processed = events
+    .map((e) => {
+      return e.trackedEntityInstance;
+    })
+    .join(";");
+
+  const {
+    data: { trackedEntityInstances },
+  } = await api.get("trackedEntityInstances.json", {
+    params: {
+      program: PROGRAM,
+      ouMode: "ALL",
+      fields: "*",
+      trackedEntityInstance: processed,
+    },
+  });
+
+  await this.processInstances({
+    trackedEntityInstances,
+  });
+
+  log.info(`Processing initial data`);
+  await this.processInstances({
+    trackedEntityInstances,
+  });
+  if (pageCount > 1) {
+    for (let page = 2; page <= pageCount; page++) {
+      log.info(`Fetching ${page} of ${pageCount}`);
+      const {
+        data: { events },
+      } = await api.get("events.json", {
+        params: { ...params, page },
+      });
+      log.info(`Processing ${page} of ${pageCount}`);
+      const processed = events
+        .map((e) => {
+          return e.trackedEntityInstance;
+        })
+        .join(";");
+
+      const {
+        data: { trackedEntityInstances },
+      } = await api.get("trackedEntityInstances.json", {
+        params: {
+          program: PROGRAM,
+          ouMode: "ALL",
+          fields: "*",
+          trackedEntityInstance: processed,
+        },
+      });
+      await this.processInstances({
+        trackedEntityInstances,
+      });
+    }
+  }
 };
 
 module.exports.epivac = async (
