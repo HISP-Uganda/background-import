@@ -2,7 +2,7 @@ const { fromPairs, chunk } = require("lodash");
 const { default: Axios } = require("axios");
 const fs = require("fs");
 const csv = require("csv-parser");
-const { queryDHIS2, postDHIS2 } = require("./common");
+const { queryDHIS2, postDHIS2, uploadDHIS2 } = require("./common");
 
 const logger = require("./Logger");
 
@@ -154,18 +154,32 @@ const fetchAllMapping = async (
         attributes,
         mapping
       );
-      log.info(`Processed ${dataValues.length} records`);
-      log.info(
-        `Inserting ${count}  of ${total} organisation units for mappings (${mappingIds.join(
-          ","
-        )})`
-      );
-      const response = await postDHIS2("dataValueSets", { dataValues });
-      log.info(JSON.stringify(response?.importCount));
-      if (response.conflicts) {
-        for (const conflict of response.conflicts) {
-          log.warn(`${conflict.object} ${conflict.value}`);
-        }
+
+      if (dataValues.length > 0) {
+        log.info(
+          `Inserting ${
+            dataValues.length
+          } records for ${count}  of ${total} organisation units for mappings (${mappingIds.join(
+            ","
+          )})`
+        );
+        const response = await postDHIS2(
+          "dataValueSets",
+          { dataValues },
+          {
+            async: true,
+            dryRun: false,
+            strategy: "NEW_AND_UPDATES",
+            preheatCache: true,
+            skipAudit: true,
+            dataElementIdScheme: "UID",
+            orgUnitIdScheme: "UID",
+            idScheme: "UID",
+            skipExistingCheck: false,
+            format: "json",
+          }
+        );
+        log.info(`Created task with id ${response.response.id}`);
       }
     } catch (error) {
       log.error(error.message);

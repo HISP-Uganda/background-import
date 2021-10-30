@@ -1,6 +1,6 @@
 const axios = require("axios");
+const FormData = require("form-data");
 const dotenv = require("dotenv");
-
 
 const result = dotenv.config();
 
@@ -69,7 +69,7 @@ module.exports.postDHIS2 = async (path, postData, params) => {
       return data;
     }
   } catch (e) {
-    console.log(e.message)
+    console.log(e.message);
   }
 };
 
@@ -96,6 +96,25 @@ module.exports.updateDHIS2 = async (path, postData, params) => {
       const { data } = await axios.put(urlx, postData, {
         auth: this.createDHIS2Auth(),
         params,
+      });
+      return data;
+    }
+  } catch (e) {
+    console.log(e.message);
+  }
+};
+
+module.exports.uploadDHIS2 = async (path, file, fileName, params) => {
+  try {
+    const baseUrl = getDHIS2Url();
+    if (baseUrl) {
+      const urlx = `${baseUrl}/${path}`;
+      const form = new FormData();
+      form.append(fileName, file, `${fileName}.csv`);
+      const { data } = await axios.post(urlx, form, {
+        auth: this.createDHIS2Auth(),
+        params,
+        headers: form.getHeaders(),
       });
       return data;
     }
