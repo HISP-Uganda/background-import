@@ -36,8 +36,13 @@ schedules.db
 logs*
 *.excel
 *.xlsx
-*.csv
 page*
 example.json
 hvatAttributes.json
 hvatDataElements.json
+*vat*.csv
+105*
+another*
+test*
+units.csv
+wakiso*
