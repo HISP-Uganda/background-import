@@ -248,7 +248,19 @@ const fetchPerDistrict = async (
     aMapping.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
   );
 
-  for (const district of districts) {
+  const foundDistricts = districts.filter(
+    ({ name }) =>
+      [
+        "Jinja District",
+        "Kampala District",
+        "Kasese District",
+        "Luwero District",
+        "Rukungiri District",
+        "Tororo District",
+        "Wakiso District",
+      ].indexOf(name) !== -1
+  );
+  for (const district of foundDistricts) {
     try {
       log.info(
         `Downloading data for ${
