@@ -37,3 +37,7 @@ logs*
 *.excel
 *.xlsx
 *.csv
+page*
+example.json
+hvatAttributes.json
+hvatDataElements.json

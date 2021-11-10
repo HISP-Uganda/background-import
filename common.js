@@ -122,3 +122,71 @@ module.exports.uploadDHIS2 = async (path, file, fileName, params) => {
     console.log(e.message);
   }
 };
+
+module.exports.validText = (dataType, value) => {
+  switch (dataType) {
+    case "TEXT":
+    case "LONG_TEXT":
+      return !!value;
+    case "NUMBER":
+      return !isNaN(Number(value));
+    case "EMAIL":
+      const re = /\S+@\S+\.\S+/;
+      return re.test(String(value).toLowerCase());
+    case "BOOLEAN":
+      return (
+        String(value).toLowerCase() === "false" ||
+        String(value).toLowerCase() === "true"
+      );
+    case "TRUE_ONLY":
+      return String(value).toLowerCase() === "true";
+    case "PERCENTAGE":
+      return Number(value) >= 0 && Number(value) <= 100;
+    case "INTEGER":
+      return !isNaN(Number(value)) && Number.isInteger(Number(value));
+    case "UNIT_INTERVAL":
+      return Number(value) >= 0 && Number(value) <= 1;
+    case "INTEGER_NEGATIVE":
+    case "NEGATIVE_INTEGER":
+      return Number.isInteger(Number(value)) && Number(value) < 0;
+    case "INTEGER_ZERO_OR_POSITIVE":
+    case "AGE":
+      const v = Number(value);
+      return !isNaN(v) && Number.isInteger(v) && v >= 0;
+    case "COORDINATE":
+      try {
+        const c = JSON.parse(value);
+        return _.isArray(c) && c.length === 2;
+      } catch (e) {
+        return false;
+      }
+    default:
+      return true;
+  }
+};
+
+module.exports.validateValue = (dataType, value, optionSetValue, optionSet) => {
+  if (optionSetValue && !!value) {
+    const options = optionSet.options.map((o) => {
+      return {
+        code: o.code,
+        value: o.value,
+      };
+    });
+    const coded = options.find((o) => {
+      return (
+        String(value).toLowerCase() === String(o.code).toLowerCase() ||
+        String(value).toLowerCase() === String(o.value).toLowerCase()
+      );
+    });
+    if (!!coded) {
+      return coded.code;
+    }
+  } else if (!!value && this.validText(dataType, value)) {
+    if ((dataType === "BOOLEAN") | (dataType === "TRUE_ONLY")) {
+      return String(value).toLowerCase();
+    }
+    return value;
+  }
+  return null;
+};

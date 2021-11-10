@@ -2,7 +2,7 @@ const { fromPairs, chunk } = require("lodash");
 const { default: Axios } = require("axios");
 const fs = require("fs");
 const csv = require("csv-parser");
-const { queryDHIS2, postDHIS2, uploadDHIS2 } = require("./common");
+const { queryDHIS2, postDHIS2 } = require("./common");
 
 const logger = require("./Logger");
 
@@ -12,7 +12,7 @@ async function downloadData(
   url,
   username,
   password,
-  id,
+  orgUnit,
   startDate,
   endDate
 ) {
@@ -30,7 +30,8 @@ async function downloadData(
       dataSet: remoteDataSet,
       startDate,
       endDate,
-      orgUnit: id,
+      orgUnit,
+      children: true,
     },
   });
   response.data.pipe(fs.createWriteStream(`${sectionName}.csv`));
@@ -44,7 +45,7 @@ async function downloadData(
   });
 }
 
-const processFile = async (sectionName, combos, attributes, orgUnit) => {
+const processFile = async (sectionName, combos, attributes, facilities) => {
   const dataValues = [];
   return new Promise((resolve, reject) => {
     const stream = fs.createReadStream(`${sectionName}.csv`);
@@ -60,23 +61,28 @@ const processFile = async (sectionName, combos, attributes, orgUnit) => {
           period,
           categoryoptioncombo: coc,
           attributeoptioncombo: aoc,
+          orgunit: unit,
           value,
         } = row;
         const deAndCoc = combos[`${de},${coc}`];
-        if (deAndCoc) {
-          const attributeOptionCombo = attributes[aoc];
-          const [dataElement, categoryOptionCombo] =
-            String(deAndCoc).split(",");
-          if (dataElement && categoryOptionCombo && attributeOptionCombo) {
-            dataValues.push({
-              dataElement,
-              period,
-              orgUnit,
-              categoryOptionCombo,
-              attributeOptionCombo,
-              value,
-            });
-          }
+        const orgUnit = facilities[unit];
+        const attributeOptionCombo = attributes[aoc];
+        const [dataElement, categoryOptionCombo] = String(deAndCoc).split(",");
+        if (
+          deAndCoc &&
+          orgUnit &&
+          attributeOptionCombo &&
+          dataElement &&
+          categoryOptionCombo
+        ) {
+          dataValues.push({
+            dataElement,
+            period,
+            orgUnit,
+            categoryOptionCombo,
+            attributeOptionCombo,
+            value,
+          });
         }
       }
     });
@@ -188,12 +194,125 @@ const fetchAllMapping = async (
   }
 };
 
+const readCSV = (fileName) => {
+  const results = [];
+
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(fileName)
+      .pipe(csv())
+      .on("data", (data) => results.push(data))
+      .on("end", () => {
+        resolve(results);
+      });
+  });
+};
+
+const fetchPerDistrict = async (
+  sectionName,
+  mappings,
+  startDate,
+  endDate,
+  start = 0
+) => {
+  const log = logger(sectionName);
+  const mappingIds = String(mappings).split(",");
+  const districts = await readCSV("./organisationUnits.csv");
+  const facilities = await readCSV("./facilities.csv");
+  const l2Facilities = fromPairs(
+    facilities.filter((facility) => !!facility.l2).map((f) => [f.l2, f.repo])
+  );
+
+  const [mappingDetails, aMapping] = await Promise.all([
+    queryDHIS2(`dataStore/agg-wizard/${mappingIds[0]}`, {}),
+    queryDHIS2(`dataStore/a-mapping/${mappingIds[0]}`, {}),
+  ]);
+
+  const { remoteDataSet, url, username, password } = mappingDetails;
+
+  const allCombos = await Promise.all(
+    mappingIds.map((mappingId) =>
+      queryDHIS2(`dataStore/c-mapping/${mappingId}`, {})
+    )
+  );
+  let combos = {};
+
+  allCombos.forEach((combo) => {
+    combos = {
+      ...combos,
+      ...fromPairs(
+        combo.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
+      ),
+    };
+  });
+  const attributes = fromPairs(
+    aMapping.filter((m) => !!m.mapping).map((m) => [m.id, m.mapping])
+  );
+
+  for (const district of districts) {
+    try {
+      log.info(
+        `Downloading data for ${
+          district.displayName
+        } for mappings (${mappingIds.join(",")})`
+      );
+      await downloadData(
+        sectionName,
+        remoteDataSet,
+        url,
+        username,
+        password,
+        district.id,
+        startDate,
+        endDate
+      );
+      log.info(
+        `Processing data for ${district.name} for mappings (${mappingIds.join(
+          ","
+        )})`
+      );
+      const dataValues = await processFile(
+        sectionName,
+        combos,
+        attributes,
+        l2Facilities
+      );
+
+      if (dataValues.length > 0) {
+        log.info(
+          `Inserting ${dataValues.length} records for ${district.displayName}`
+        );
+        const response = await postDHIS2(
+          "dataValueSets",
+          { dataValues },
+          {
+            async: true,
+            dryRun: false,
+            strategy: "NEW_AND_UPDATES",
+            preheatCache: true,
+            skipAudit: true,
+            dataElementIdScheme: "UID",
+            orgUnitIdScheme: "UID",
+            idScheme: "UID",
+            skipExistingCheck: false,
+            format: "json",
+          }
+        );
+        log.info(`Created task with id ${response.response.id}`);
+      }
+    } catch (error) {
+      log.error(error.message);
+    }
+  }
+};
+
 const args = process.argv.slice(2);
 
 if (args.length >= 4) {
   const start = args.length === 5 ? parseInt(args[4], 10) : 0;
-  const mappingIds = String(args[1]).split(",");
-  fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
+  // fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
+  //   console.log("Done")
+  // );
+  fetchPerDistrict(args[0], args[1], args[2], args[3], start).then(() =>
     console.log("Done")
   );
 } else {
