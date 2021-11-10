@@ -266,9 +266,9 @@ const fetchPerDistrict = async (
         endDate
       );
       log.info(
-        `Processing data for ${district.name} for mappings (${mappingIds.join(
-          ","
-        )})`
+        `Processing data for ${
+          district.displayName
+        } for mappings (${mappingIds.join(",")})`
       );
       const dataValues = await processFile(
         sectionName,
