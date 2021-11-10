@@ -281,23 +281,29 @@ const fetchPerDistrict = async (
         log.info(
           `Inserting ${dataValues.length} records for ${district.displayName}`
         );
-        const response = await postDHIS2(
-          "dataValueSets",
-          { dataValues },
-          {
-            async: true,
-            dryRun: false,
-            strategy: "NEW_AND_UPDATES",
-            preheatCache: true,
-            skipAudit: true,
-            dataElementIdScheme: "UID",
-            orgUnitIdScheme: "UID",
-            idScheme: "UID",
-            skipExistingCheck: false,
-            format: "json",
-          }
+
+        const requests = chunk(dataValues, 50000).map((dvs) =>
+          postDHIS2(
+            "dataValueSets",
+            { dataValues: dvs },
+            {
+              async: true,
+              dryRun: false,
+              strategy: "NEW_AND_UPDATES",
+              preheatCache: true,
+              skipAudit: true,
+              dataElementIdScheme: "UID",
+              orgUnitIdScheme: "UID",
+              idScheme: "UID",
+              skipExistingCheck: false,
+              format: "json",
+            }
+          )
         );
-        log.info(`Created task with id ${response.response.id}`);
+        const responses = await Promise.all(requests);
+        for (const response of responses) {
+          log.info(`Created task with id ${response.response.id}`);
+        }
       }
     } catch (error) {
       log.error(error.message);
