@@ -45,7 +45,7 @@ module.exports.createApi = (baseURL, username, password) => {
 module.exports.processInstance = async (params) => {
   const { attributes, enrollments, trackedEntityInstance } = params;
   const enroll = enrollments.filter((en) => en.program === PROGRAM);
-  const allEvents = flatten(enroll.map((en) => en.events));
+  const allEvents = enroll.flatMap((en) => en.events);
   let results = fromPairs(attributes.map((a) => [a.attribute, a.value]));
   const id = `${results[NIN_ATTRIBUTE] || ""}${results[OTHER_ID] || ""}`;
   let processedEvents = allEvents
