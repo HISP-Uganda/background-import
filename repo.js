@@ -212,14 +212,19 @@ const fetchPerDistrict = async (
   mappings,
   startDate,
   endDate,
-  start = 0
+  which = 1
 ) => {
   const log = logger(sectionName);
   const mappingIds = String(mappings).split(",");
   const districts = await readCSV("./organisationUnits.csv");
   const facilities = await readCSV("./facilities.csv");
+
   const l2Facilities = fromPairs(
     facilities.filter((facility) => !!facility.l2).map((f) => [f.l2, f.repo])
+  );
+
+  const ctFacilities = fromPairs(
+    facilities.filter((facility) => !!facility.ct).map((f) => [f.ct, f.repo])
   );
 
   const [mappingDetails, aMapping] = await Promise.all([
@@ -270,18 +275,27 @@ const fetchPerDistrict = async (
           district.displayName
         } for mappings (${mappingIds.join(",")})`
       );
-      const dataValues = await processFile(
-        sectionName,
-        combos,
-        attributes,
-        l2Facilities
-      );
+      let dataValues = [];
 
+      if (which === 1) {
+        dataValues = await processFile(
+          sectionName,
+          combos,
+          attributes,
+          ctFacilities
+        );
+      } else {
+        dataValues = await processFile(
+          sectionName,
+          combos,
+          attributes,
+          l2Facilities
+        );
+      }
       if (dataValues.length > 0) {
         log.info(
           `Inserting ${dataValues.length} records for ${district.displayName}`
         );
-
         const requests = chunk(dataValues, 50000).map((dvs) =>
           postDHIS2(
             "dataValueSets",
@@ -314,11 +328,11 @@ const fetchPerDistrict = async (
 const args = process.argv.slice(2);
 
 if (args.length >= 4) {
-  const start = args.length === 5 ? parseInt(args[4], 10) : 0;
+  const which = args.length === 5 ? 1 : 2;
   // fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
   //   console.log("Done")
   // );
-  fetchPerDistrict(args[0], args[1], args[2], args[3], start).then(() =>
+  fetchPerDistrict(args[0], args[1], args[2], args[3], which).then(() =>
     console.log("Done")
   );
 } else {
