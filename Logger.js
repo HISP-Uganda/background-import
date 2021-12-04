@@ -1,7 +1,7 @@
 const { createLogger, format, transports } = require("winston");
 require("winston-daily-rotate-file");
 
-const logDir = 'logs';
+const logDir = "logs";
 
 const dailyRotateFileTransport = (filename) =>
   new transports.DailyRotateFile({

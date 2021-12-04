@@ -97,6 +97,47 @@ const processFile = async (sectionName, combos, attributes, facilities) => {
     });
   });
 };
+
+const readFile = async (sectionName) => {
+  const dataValues = [];
+  return new Promise((resolve, reject) => {
+    const stream = fs.createReadStream(`${sectionName}.csv`);
+    const parser = csv();
+    stream.on("ready", () => {
+      stream.pipe(parser);
+    });
+    parser.on("readable", function () {
+      let row;
+      while ((row = parser.read())) {
+        const {
+          dataelement: dataElement,
+          period,
+          categoryoptioncombo: categoryOptionCombo,
+          attributeoptioncombo: attributeOptionCombo,
+          orgunit: orgUnit,
+          value,
+        } = row;
+        dataValues.push({
+          dataElement,
+          period,
+          orgUnit,
+          categoryOptionCombo,
+          attributeOptionCombo,
+          value,
+        });
+      }
+    });
+    parser.on("error", function (err) {
+      console.error(err.message);
+      reject();
+    });
+
+    parser.on("end", function () {
+      resolve(dataValues);
+    });
+  });
+};
+
 const fetchAllMapping = async (
   sectionName,
   mappingIds,
@@ -325,16 +366,91 @@ const fetchPerDistrict = async (
   }
 };
 
-const args = process.argv.slice(2);
+const transferDDIData = async () => {
+  const log = logger("DDI");
 
-if (args.length >= 4) {
-  const which = args.length === 5 ? 1 : 2;
-  // fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
-  //   console.log("Done")
-  // );
-  fetchPerDistrict(args[0], args[1], args[2], args[3], which).then(() =>
-    console.log("Done")
-  );
-} else {
-  console.log("Wrong arguments");
-}
+  const districts = await readCSV("./organisationUnits.csv");
+  const years = [2018, 2019, 2020, 2021];
+
+  for (const year of years) {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    for (const district of districts) {
+      log.info(
+        `Fetching data for ${district.displayName} for ${startDate} to ${endDate}`
+      );
+      // const {
+      //   data: { dataValues },
+      // } = await Axios.get(
+      //   "https://repo.hispuganda.org/repo/api/dataValueSets.json",
+      //   {
+      //     auth: { username: "carapai", password: "Baby77@Baby771" },
+      //     params: {
+      //       dataSet: "mxBQbAMkGVd",
+      //       startDate,
+      //       endDate,
+      //       orgUnit: district.id,
+      //       children: true,
+      //     },
+      //   }
+      // );
+      await downloadData(
+        "DDI",
+        "mxBQbAMkGVd",
+        "https://repo.hispuganda.org/repo/",
+        "carapai",
+        "Baby77@Baby771",
+        district.id,
+        startDate,
+        endDate
+      );
+      const dataValues = await readFile("DDI");
+
+      if (dataValues && dataValues.length > 0) {
+        log.info(
+          `Found ${dataValues.length} values for ${district.displayName} for ${startDate} to ${endDate}`
+        );
+        try {
+          const requests = chunk(dataValues, 50000).map((dvs) =>
+            postDHIS2(
+              "dataValueSets",
+              { dataValues: dvs },
+              {
+                async: true,
+                dryRun: false,
+                strategy: "NEW_AND_UPDATES",
+                preheatCache: true,
+                skipAudit: true,
+                dataElementIdScheme: "UID",
+                orgUnitIdScheme: "UID",
+                idScheme: "UID",
+                skipExistingCheck: false,
+                format: "json",
+              }
+            )
+          );
+          const responses = await Promise.all(requests);
+          for (const response of responses) {
+            log.info(`Created task with id ${response.response.id}`);
+          }
+        } catch (error) {}
+      }
+    }
+  }
+};
+// const args = process.argv.slice(2);
+
+// if (args.length >= 2) {
+// const which = args.length === 5 ? 1 : 2;
+// fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
+//   console.log("Done")
+// );
+// fetchPerDistrict(args[0], args[1], args[2], args[3], which).then(() =>
+//   console.log("Done")
+// );
+// transferDDIData(args[0], args[1]);
+// } else {
+//   console.log("Wrong arguments");
+// }
+
+transferDDIData();
