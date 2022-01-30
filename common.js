@@ -1,4 +1,6 @@
 const axios = require("axios");
+const csv = require("csv-parser");
+const fs = require("fs");
 const FormData = require("form-data");
 const dotenv = require("dotenv");
 
@@ -189,4 +191,16 @@ module.exports.validateValue = (dataType, value, optionSetValue, optionSet) => {
     return value;
   }
   return null;
+};
+
+module.exports.readCSV = (fileName) => {
+  const results = [];
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(fileName)
+      .pipe(csv())
+      .on("data", (data) => results.push(data))
+      .on("end", () => {
+        resolve(results);
+      });
+  });
 };
