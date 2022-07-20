@@ -37,9 +37,19 @@ module.exports.createDHIS2Auth = () => {
   const password = process.env.DHIS2_PASS;
   return { username, password };
 };
+module.exports.createDHIS2Auth2 = () => {
+  const username = process.env.DHIS2_USER_HMIS;
+  const password = process.env.DHIS2_PASS_HMIS;
+  return { username, password };
+};
 
 module.exports.getDHIS2Url = () => {
   const uri = process.env.DHIS2_URL;
+  return this.getDHIS2Url1(uri);
+};
+
+module.exports.getDHIS2Url2 = () => {
+  const uri = process.env.DHIS2_URL_HMIS;
   return this.getDHIS2Url1(uri);
 };
 
@@ -59,6 +69,22 @@ module.exports.queryDHIS2 = async (path, params) => {
   }
 };
 
+module.exports.query2DHIS2 = async (path, params) => {
+  // try {
+  const baseUrl = this.getDHIS2Url2();
+  if (baseUrl) {
+    const urlx = `${baseUrl}/${path}`;
+    const { data } = await axios.get(urlx, {
+      auth: this.createDHIS2Auth2(),
+      params,
+    });
+    return data;
+  }
+  // } catch (e) {
+  //   console.log(e.message);
+  // }
+};
+
 module.exports.postDHIS2 = async (path, postData, params) => {
   try {
     const baseUrl = this.getDHIS2Url();
@@ -66,6 +92,22 @@ module.exports.postDHIS2 = async (path, postData, params) => {
       const urlx = `${baseUrl}/${path}`;
       const { data } = await axios.post(urlx, postData, {
         auth: this.createDHIS2Auth(),
+        params,
+      });
+      return data;
+    }
+  } catch (e) {
+    console.log(e.message);
+  }
+};
+
+module.exports.post2DHIS2 = async (path, postData, params) => {
+  try {
+    const baseUrl = this.getDHIS2Url2();
+    if (baseUrl) {
+      const urlx = `${baseUrl}/${path}`;
+      const { data } = await axios.post(urlx, postData, {
+        auth: this.createDHIS2Auth2(),
         params,
       });
       return data;

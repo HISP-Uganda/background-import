@@ -23,7 +23,7 @@ const processEvents = async (program, pageSize = 500) => {
   const params = {
     program,
     ouMode: "ALL",
-    lastUpdatedDuration: "5m",
+    lastUpdatedDuration: "1h",
     page: 1,
     pageSize,
   };
@@ -52,7 +52,7 @@ const processTracker = async (program, pageSize = 100) => {
   const params = {
     program,
     ouMode: "ALL",
-    lastUpdatedDuration: "5m",
+    lastUpdatedDuration: "1h",
     page: 1,
     pageSize,
     fields: "*",
@@ -80,7 +80,7 @@ const processTracker = async (program, pageSize = 100) => {
   }
 };
 
-const programJob = schedule.scheduleJob("*/5 * * * *", async function () {
+const programJob = schedule.scheduleJob("0 * * * *", async function () {
   for (const program of events) {
     await processEvents(program);
   }

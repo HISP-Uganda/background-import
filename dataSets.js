@@ -38,7 +38,7 @@ const processDataSet = async (dataSet) => {
   const data = await query2DHIS2("dataValueSets.json", {
     dataSet,
     orgUnit: "akV6429SUqu",
-    lastUpdatedDuration: "5m",
+    lastUpdatedDuration: "1h",
     children: true,
   });
   log.info(`Found ${data.dataValues.length} records`);
@@ -47,7 +47,7 @@ const processDataSet = async (dataSet) => {
   console.log(response);
 };
 
-const dataSetJobs = schedule.scheduleJob("*/5 * * * *", async function () {
+const dataSetJobs = schedule.scheduleJob("0 * * * *", async function () {
   for (const dataSet of dataSets) {
     log.info(`Processing dataSet ${dataSet}`);
     await processDataSet(dataSet);
