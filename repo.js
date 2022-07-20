@@ -248,7 +248,7 @@ const readCSV = (fileName) => {
   });
 };
 
-const fetchPerDistrict = async (
+export const fetchPerDistrict = async (
   sectionName,
   mappings,
   startDate,
@@ -295,74 +295,74 @@ const fetchPerDistrict = async (
   );
 
   for (const district of districts) {
-    try {
-      log.info(
-        `Downloading data for ${
-          district.displayName
-        } for mappings (${mappingIds.join(",")})`
-      );
-      await downloadData(
-        sectionName,
-        remoteDataSet,
-        url,
-        username,
-        password,
-        district.id,
-        startDate,
-        endDate
-      );
-      log.info(
-        `Processing data for ${
-          district.displayName
-        } for mappings (${mappingIds.join(",")})`
-      );
-      let dataValues = [];
+    // try {
+    log.info(
+      `Downloading data for ${
+        district.displayName
+      } for mappings (${mappingIds.join(",")})`
+    );
+    await downloadData(
+      sectionName,
+      remoteDataSet,
+      url,
+      username,
+      password,
+      district.id,
+      startDate,
+      endDate
+    );
+    log.info(
+      `Processing data for ${
+        district.displayName
+      } for mappings (${mappingIds.join(",")})`
+    );
+    let dataValues = [];
 
-      if (which === 1) {
-        dataValues = await processFile(
-          sectionName,
-          combos,
-          attributes,
-          ctFacilities
-        );
-      } else {
-        dataValues = await processFile(
-          sectionName,
-          combos,
-          attributes,
-          l2Facilities
-        );
-      }
-      if (dataValues.length > 0) {
-        log.info(
-          `Inserting ${dataValues.length} records for ${district.displayName}`
-        );
-        const requests = chunk(dataValues, 50000).map((dvs) =>
-          postDHIS2(
-            "dataValueSets",
-            { dataValues: dvs },
-            {
-              async: true,
-              dryRun: false,
-              strategy: "NEW_AND_UPDATES",
-              preheatCache: true,
-              skipAudit: true,
-              dataElementIdScheme: "UID",
-              orgUnitIdScheme: "UID",
-              idScheme: "UID",
-              skipExistingCheck: false,
-              format: "json",
-            }
-          )
-        );
-        const responses = await Promise.all(requests);
-        for (const response of responses) {
-          log.info(`Created task with id ${response.response.id}`);
-        }
-      }
-    } catch (error) {
-      log.error(error.message);
+    if (which === 1) {
+      dataValues = await processFile(
+        sectionName,
+        combos,
+        attributes,
+        ctFacilities
+      );
+    } else {
+      dataValues = await processFile(
+        sectionName,
+        combos,
+        attributes,
+        l2Facilities
+      );
     }
+    if (dataValues.length > 0) {
+      log.info(
+        `Inserting ${dataValues.length} records for ${district.displayName}`
+      );
+      const requests = chunk(dataValues, 50000).map((dvs) =>
+        postDHIS2(
+          "dataValueSets",
+          { dataValues: dvs },
+          {
+            async: true,
+            dryRun: false,
+            strategy: "NEW_AND_UPDATES",
+            preheatCache: true,
+            skipAudit: true,
+            dataElementIdScheme: "UID",
+            orgUnitIdScheme: "UID",
+            idScheme: "UID",
+            skipExistingCheck: false,
+            format: "json",
+          }
+        )
+      );
+      const responses = await Promise.all(requests);
+      for (const response of responses) {
+        log.info(`Created task with id ${response.response.id}`);
+      }
+    }
+    // } catch (error) {
+    //   log.error(error.message);
+    // }
   }
 };
 
@@ -442,13 +442,9 @@ const args = process.argv.slice(2);
 
 if (args.length >= 2) {
   const which = args.length === 5 ? 1 : 2;
-  // fetchAllMapping(args[0], mappingIds, args[2], args[3], start).then(() =>
-  //   console.log("Done")
-  // );
   fetchPerDistrict(args[0], args[1], args[2], args[3], which).then(() =>
     console.log("Done")
   );
-  // transferDDIData(args[0], args[1]);
 } else {
   console.log("Wrong arguments");
 }
