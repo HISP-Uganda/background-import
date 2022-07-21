@@ -53,3 +53,12 @@ const dataSetJobs = schedule.scheduleJob("0 * * * *", async function () {
     await processDataSet(dataSet);
   }
 });
+
+const test = async () => {
+  for (const dataSet of dataSets) {
+    log.info(`Processing dataSet ${dataSet}`);
+    await processDataSet(dataSet);
+  }
+};
+
+test().then(() => console.log("Dead"));
