@@ -1,4 +1,5 @@
 const axios = require("axios");
+const nodemailer = require("nodemailer");
 const csv = require("csv-parser");
 const fs = require("fs");
 const FormData = require("form-data");
@@ -245,4 +246,17 @@ module.exports.readCSV = (fileName) => {
         resolve(results);
       });
   });
+};
+
+module.exports.sendMail = () => {
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    auth: {
+      user: process.env.GMAIL_USERNAME,
+      pass: process.env.GMAIL_PASSWORD,
+    },
+  });
+
+  transporter.verify().then(console.log).catch(console.error);
 };

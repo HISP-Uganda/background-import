@@ -1,6 +1,6 @@
 const schedule = require("node-schedule");
 const logger = require("./Logger");
-const { query2DHIS2, postDHIS2 } = require("./common");
+const { query2DHIS2, postDHIS2, sendMail } = require("./common");
 const log = logger("data-sets");
 
 const dataSets = [
@@ -44,25 +44,31 @@ const processDataSet = async (dataSet) => {
   if (data.dataValues) {
     log.info(`Found ${data.dataValues.length} records`);
     log.info(`Inserting in repo`);
-    const response = await postDHIS2("dataValueSets", data);
-    console.log(response);
+    const { importCount, conflicts } = await postDHIS2("dataValueSets", data);
+    console.log(conflicts);
+    log.info(
+      `imported: ${importCount.imported}, updated: ${importCount.updated}, ignored: ${importCount.ignored}, deleted: ${importCount.deleted}`
+    );
+    for (const conflict of conflicts) {
+      log.warn(conflict.value);
+    }
   } else {
     log.info(`No records found`);
   }
 };
 
-const dataSetJobs = schedule.scheduleJob("0 * * * *", async function () {
+schedule.scheduleJob("0 * * * *", async function () {
   for (const dataSet of dataSets) {
     log.info(`Processing dataSet ${dataSet}`);
     await processDataSet(dataSet);
   }
 });
 
-const test = async () => {
-  for (const dataSet of dataSets) {
-    log.info(`Processing dataSet ${dataSet}`);
-    await processDataSet(dataSet);
-  }
-};
+// const test = async () => {
+//   for (const dataSet of dataSets) {
+//     log.info(`Processing dataSet ${dataSet}`);
+//     await processDataSet(dataSet);
+//   }
+// };
 
-test().then(() => console.log("Dead"));
+// test().then(() => console.log("Done"));
