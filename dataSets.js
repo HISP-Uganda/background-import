@@ -41,10 +41,14 @@ const processDataSet = async (dataSet) => {
     lastUpdatedDuration: "1h",
     children: true,
   });
-  log.info(`Found ${data.dataValues.length} records`);
-  log.info(`Inserting in repo`);
-  const response = await postDHIS2("dataValueSets", data);
-  console.log(response);
+  if (data.dataValues) {
+    log.info(`Found ${data.dataValues.length} records`);
+    log.info(`Inserting in repo`);
+    const response = await postDHIS2("dataValueSets", data);
+    console.log(response);
+  } else {
+    log.info(`No records found`);
+  }
 };
 
 const dataSetJobs = schedule.scheduleJob("0 * * * *", async function () {
