@@ -248,7 +248,7 @@ const readCSV = (fileName) => {
   });
 };
 
-export const fetchPerDistrict = async (
+module.exports.fetchPerDistrict = async (
   sectionName,
   mappings,
   startDate,
@@ -442,7 +442,7 @@ const args = process.argv.slice(2);
 
 if (args.length >= 2) {
   const which = args.length === 5 ? 1 : 2;
-  fetchPerDistrict(args[0], args[1], args[2], args[3], which).then(() =>
+  this.fetchPerDistrict(args[0], args[1], args[2], args[3], which).then(() =>
     console.log("Done")
   );
 } else {
