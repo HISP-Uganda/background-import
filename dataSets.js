@@ -57,7 +57,7 @@ const processDataSet = async (dataSet) => {
 	}
 };
 
-schedule.scheduleJob("0 * * * *", async function () {
+schedule.scheduleJob("*/5 * * * *", async function () {
 	for (const dataSet of dataSets) {
 		log.info(`Processing dataSet ${dataSet}`);
 		await processDataSet(dataSet);
