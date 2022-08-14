@@ -24,7 +24,6 @@ const processInstances = (trackedEntityInstances, identifierIds) => {
 
 const readCSV = (fileName) => {
   const results = [];
-
   return new Promise((resolve, reject) => {
     fs.createReadStream(fileName)
       .pipe(csv())
