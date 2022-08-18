@@ -213,30 +213,28 @@ const processDataSet = async (dataSet, orgUnit, period) => {
 		);
 		const responses = await Promise.all(requests);
 		for (const response of responses) {
-			log.info(`Created task with url https://hmis-repo.health.go.ug${response.response["relativeNotifierEndpoint"]}`);
-			log.info(`Check status at https://hmis-repo.health.go.ug/api/system/taskSummaries/DATAVALUE_IMPORT/${response.response.id}.json`);
+			if (response && Object.keys(response).length > 0) {
+				log.info(`Created task with url https://hmis-repo.health.go.ug${response.response["relativeNotifierEndpoint"]}`);
+				log.info(`Check status at https://hmis-repo.health.go.ug/api/system/taskSummaries/DATAVALUE_IMPORT/${response.response.id}.json`);
+			}
 		}
 	} else {
 		log.info("No records found");
 	}
 };
 
-const insert = async () => {
+const insert = async (dataSet) => {
 	const districts = await readCSV("./organisationUnits.csv");
-	for (const found of chunk(districts, 5)) {
-		const orgUnit = found.map(({id}) => id);
-		const displayName = found.map(({displayName}) => displayName).join(",")
-		for (const {id, name, periodType} of dataSets) {
-			let periods = chunk(periodType, 5)
-
-			for (const period of periods) {
-				log.info(
-					`Processing dataSet ${name} for ${displayName} for period ${period.join(",")}`
-				);
-				await processDataSet([id], orgUnit, period);
-			}
+	const {id, name, periodType} = dataSets.find(({id}) => id === dataSet)
+	for (const {id: orgUnit, displayName} of districts) {
+		let periods = chunk(periodType, 6)
+		for (const period of periods) {
+			log.info(
+				`Processing dataSet ${name} for ${displayName} for period ${period.join(",")}`
+			);
+			await processDataSet([id], [orgUnit], period);
 		}
 	}
 };
-
-insert().then(() => console.log("Done"))
+const args = process.argv.slice(2);
+insert(args[0]).then(() => console.log("Done"))
