@@ -193,7 +193,7 @@ const processDataSet = async (dataSet, orgUnit, period) => {
 	if (dataValues && dataValues.length > 0) {
 		log.info(`Found ${dataValues.length} records`);
 		log.info("Inserting in repo");
-		const requests = chunk(dataValues, 50000).map((dvs) =>
+		const requests = chunk(dataValues, 10000).map((dvs) =>
 			postDHIS2(
 				"dataValueSets",
 				{dataValues: dvs},
