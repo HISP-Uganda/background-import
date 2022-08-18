@@ -88,25 +88,23 @@ module.exports.query2DHIS2 = async (path, params) => {
 };
 
 module.exports.downloadData = async (
-	remoteDataSet,
+	dataSet,
 	orgUnit,
 	period
 ) => {
 	const baseUrl = this.getDHIS2Url2();
-	let remoteUrl = `${baseUrl}/dataValueSets.csv`;
+	const units = orgUnit.map((ou) => `orgUnit=${ou}`).join("&");
+	const periods = period.map((pe) => `period=${pe}`).join("&");
+	const dataSets = dataSet.map((ds) => `dataSet=${ds}`).join("&");
+	const params = ["children=true", units, periods, dataSets].join("&")
+	let remoteUrl = `${baseUrl}/dataValueSets.csv?${params}`;
 	const response = await Axios({
 		url: remoteUrl,
 		method: "GET",
 		responseType: "stream",
 		auth: this.createDHIS2Auth2(),
-		params: {
-			dataSet: remoteDataSet,
-			period,
-			orgUnit,
-			children: true,
-		},
 	});
-	response.data.pipe(fs.createWriteStream(`${remoteDataSet}.csv`));
+	response.data.pipe(fs.createWriteStream(`${dataSet.join("")}.csv`));
 	return new Promise((resolve, reject) => {
 		response.data.on("end", () => {
 			resolve();
@@ -179,6 +177,7 @@ module.exports.postDHIS2 = async (path, postData, params) => {
 		}
 	} catch (e) {
 		console.log(e.message);
+		return {}
 	}
 };
 

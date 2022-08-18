@@ -188,7 +188,7 @@ const dataSets = [
 ];
 const processDataSet = async (dataSet, orgUnit, period) => {
 	log.info("Downloading from hmis");
-	await downloadData(dataSet, orgUnit, period);
+	await downloadData([dataSet], orgUnit, [period]);
 	const dataValues = await processFile(dataSet);
 	if (dataValues && dataValues.length > 0) {
 		log.info(`Found ${dataValues.length} records`);
@@ -223,7 +223,9 @@ const processDataSet = async (dataSet, orgUnit, period) => {
 
 const insert = async () => {
 	const districts = await readCSV("./organisationUnits.csv");
-	for (const {id: orgUnit, displayName} of districts) {
+	for (const found of chunk(districts, 5)) {
+		const orgUnit = found.map(({id}) => id);
+		const displayName = found.map(({displayName}) => displayName).join(",")
 		for (const {id, name, periodType} of dataSets) {
 			for (const period of periodType) {
 				log.info(
