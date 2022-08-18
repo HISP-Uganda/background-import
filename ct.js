@@ -227,12 +227,8 @@ const insert = async () => {
 		const orgUnit = found.map(({id}) => id);
 		const displayName = found.map(({displayName}) => displayName).join(",")
 		for (const {id, name, periodType} of dataSets) {
-			let periods = [periodType]
-			if (periodType.length > 12) {
-				periods = chunk(periodType, 6);
-			} else if (periodType.length > 4) {
-				periods = chunk(periodType, 3)
-			}
+			let periods = chunk(periodType, 5)
+
 			for (const period of periods) {
 				log.info(
 					`Processing dataSet ${name} for ${displayName} for period ${period.join(",")}`
