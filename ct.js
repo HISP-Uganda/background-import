@@ -229,7 +229,7 @@ const insert = async () => {
 		for (const {id, name, periodType} of dataSets) {
 			let periods = [periodType]
 			if (periodType.length > 12) {
-				periods = chunk(periodType, 12);
+				periods = chunk(periodType, 6);
 			} else if (periodType.length > 4) {
 				periods = chunk(periodType, 3)
 			}
