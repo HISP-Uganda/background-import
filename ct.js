@@ -188,7 +188,7 @@ const dataSets = [
 ];
 const processDataSet = async (dataSet, orgUnit, period) => {
 	log.info("Downloading from hmis");
-	await downloadData([dataSet], orgUnit, [period]);
+	await downloadData([dataSet], orgUnit, period);
 	const dataValues = await processFile(dataSet);
 	if (dataValues && dataValues.length > 0) {
 		log.info(`Found ${dataValues.length} records`);
@@ -227,11 +227,17 @@ const insert = async () => {
 		const orgUnit = found.map(({id}) => id);
 		const displayName = found.map(({displayName}) => displayName).join(",")
 		for (const {id, name, periodType} of dataSets) {
-			for (const period of periodType) {
+			let periods = [periodType]
+			if (periodType.length > 12) {
+				periods = chunk(periodType, 12);
+			} else if (periodType.length > 4) {
+				periods = chunk(periodType, 3)
+			}
+			for (const period of periods) {
 				log.info(
-					`Processing dataSet ${name} for ${displayName} for period ${period}`
+					`Processing dataSet ${name} for ${displayName} for period ${period.join(",")}`
 				);
-				await processDataSet(id, orgUnit, period);
+				await processDataSet([id], orgUnit, period);
 			}
 		}
 	}
