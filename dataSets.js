@@ -1,6 +1,8 @@
 const schedule = require("node-schedule");
+const fs = require("fs");
 const logger = require("./Logger");
 const {query2DHIS2, postDHIS2, sendMail} = require("./common");
+const {differenceInMinutes, parseISO} = require("date-fns");
 const log = logger("data-sets");
 
 const dataSets = [
@@ -34,11 +36,26 @@ const dataSets = [
 ];
 
 const processDataSet = async (dataSet) => {
+	let searches = JSON.parse(fs.readFileSync("./data-sets.json", "utf8"));
+
+	let lastUpdatedDuration = "1m";
+
+	if (searches.last) {
+		const minutes = differenceInMinutes(new Date(), parseISO(searches.last));
+		if (minutes > 0 && minutes < 60) {
+			lastUpdatedDuration = `${minutes}m`;
+		} else if (minutes >= 60 && minutes <= 60 * 24) {
+			lastUpdatedDuration = `${Math.floor(minutes / 60)}h`;
+		} else if (minutes > 60 * 24) {
+			lastUpdatedDuration = `${Math.floor(minutes / (60 * 24))}d`;
+		}
+	}
+
 	log.info("Fetching from hmis");
 	const data = await query2DHIS2("dataValueSets.json", {
 		dataSet,
 		orgUnit: "akV6429SUqu",
-		lastUpdatedDuration: "1h",
+		lastUpdatedDuration,
 		children: true,
 		includeDeleted: true
 	});
@@ -52,9 +69,15 @@ const processDataSet = async (dataSet) => {
 		for (const conflict of conflicts) {
 			log.warn(conflict.value);
 		}
+
 	} else {
 		log.info("No records found");
 	}
+
+	fs.writeFileSync(
+		"./data-sets.json",
+		JSON.stringify({...searches, last: new Date()})
+	);
 };
 
 schedule.scheduleJob("*/5 * * * *", async function () {

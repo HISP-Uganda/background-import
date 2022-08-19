@@ -1,6 +1,8 @@
 const schedule = require("node-schedule");
+const fs = require("fs");
 const logger = require("./Logger");
 const {query2DHIS2, postDHIS2} = require("./common");
+const {differenceInMinutes, parseISO} = require("date-fns");
 const log = logger("programs");
 const trackers = [
 	"qLXolImKO4p",
@@ -20,10 +22,22 @@ const events = [
 ];
 
 const processEvents = async (program, pageSize = 500) => {
+	let searches = JSON.parse(fs.readFileSync("./events.json", "utf8"));
+	let lastUpdatedDuration = "1m";
+	if (searches.last) {
+		const minutes = differenceInMinutes(new Date(), parseISO(searches.last));
+		if (minutes > 0 && minutes < 60) {
+			lastUpdatedDuration = `${minutes}m`;
+		} else if (minutes >= 60 && minutes <= 60 * 24) {
+			lastUpdatedDuration = `${Math.floor(minutes / 60)}h`;
+		} else if (minutes > 60 * 24) {
+			lastUpdatedDuration = `${Math.floor(minutes / (60 * 24))}d`;
+		}
+	}
 	const params = {
 		program,
 		ouMode: "ALL",
-		lastUpdatedDuration: "1h",
+		lastUpdatedDuration,
 		totalPages: true,
 		page: 1,
 		pageSize,
@@ -47,13 +61,30 @@ const processEvents = async (program, pageSize = 500) => {
 			await postDHIS2("events", {events});
 		}
 	}
+	fs.writeFileSync(
+		"./events.json",
+		JSON.stringify({...searches, last: new Date()})
+	);
 };
 
 const processTracker = async (program, pageSize = 100) => {
+	let searches = JSON.parse(fs.readFileSync("./tracker.json", "utf8"));
+	let lastUpdatedDuration = "1m";
+	if (searches.last) {
+		const minutes = differenceInMinutes(new Date(), parseISO(searches.last));
+		if (minutes > 0 && minutes < 60) {
+			lastUpdatedDuration = `${minutes}m`;
+		} else if (minutes >= 60 && minutes <= 60 * 24) {
+			lastUpdatedDuration = `${Math.floor(minutes / 60)}h`;
+		} else if (minutes > 60 * 24) {
+			lastUpdatedDuration = `${Math.floor(minutes / (60 * 24))}d`;
+		}
+	}
+
 	const params = {
 		program,
 		ouMode: "ALL",
-		lastUpdatedDuration: "1h",
+		lastUpdatedDuration,
 		page: 1,
 		pageSize,
 		fields: "*",
@@ -79,13 +110,16 @@ const processTracker = async (program, pageSize = 100) => {
 			await postDHIS2("trackedEntityInstances", {trackedEntityInstances});
 		}
 	}
+	fs.writeFileSync(
+		"./tracker.json",
+		JSON.stringify({...searches, last: new Date()})
+	);
 };
 
-schedule.scheduleJob("0 * * * *", async function () {
+schedule.scheduleJob("*/5 * * * *", async function () {
 	for (const program of events) {
 		await processEvents(program);
 	}
-
 	for (const program of trackers) {
 		await processTracker(program);
 	}
