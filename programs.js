@@ -88,6 +88,7 @@ const processTracker = async (program, pageSize = 100) => {
 		page: 1,
 		pageSize,
 		fields: "*",
+		totalPages: true
 	};
 	log.info("Querying page 1 from hmis");
 	const {
